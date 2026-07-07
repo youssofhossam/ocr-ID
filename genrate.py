@@ -331,8 +331,8 @@ for i, (person, back) in enumerate(zip(front_dataset, back_dataset)):
         back["national_id"],
         *BACK_POS["national_id"],
         font="DejaVu Sans",
-        size=34,
-        letter_spacing=17,
+        size=29,
+        letter_spacing=10,
         is_bold=True
     )
 
@@ -345,47 +345,36 @@ for i, (person, back) in enumerate(zip(front_dataset, back_dataset)):
         back["occupation"],
         *BACK_POS["occupation"],
         font="Simplified Arabic",
-        size=30,
+        size=29,
         is_bold=True
     )
 
-    # # -------------------------------
-    # # Issue Date
-    # # -------------------------------
+    # -------------------------------
+    # Issue Date
+    # -------------------------------
 
-    # draw_text(
-    #     ctx,
-    #     back["issue_date"],
-    #     *BACK_POS["issue_date"],
-    #     font="DejaVu Sans",
-    #     size=28,
-    #     is_bold=True
-    # )
+    draw_text(
+        ctx,
+        back["issue_date"],
+        *BACK_POS["issue_date"],
+        font="DejaVu Sans",
+        size=29,
+        is_bold=True
+    )
 
-        # -------------------------------
-        # Expiry Label
-        # -------------------------------
-    # التاريخ أولاً (يمين)
+    # -------------------------------
+    # Expiry Date
+    # -------------------------------
     draw_back_text(
         ctx,
         back["expiry_date"],
         *BACK_POS["expiry_date"],
         font="DejaVu Sans",
-        size=28,
+        size=29,
         is_bold=True,
-        align="right"
+        # align="right"
     )
 
-    # ثم عبارة البطاقة سارية حتى
-    draw_back_text(
-        ctx,
-        "البطاقة سارية حتى",
-        *BACK_POS["expiry_label"],
-        font="Simplified Arabic",
-        size=30,
-        is_bold=True,
-        align="right"
-    )
     # -------------------------------
     # Religion
     # -------------------------------
@@ -395,7 +384,7 @@ for i, (person, back) in enumerate(zip(front_dataset, back_dataset)):
         back["religion"],
         *BACK_POS["religion"],
         font="Simplified Arabic",
-        size=28,
+        size=29,
         is_bold=True
     )
 
@@ -408,7 +397,7 @@ for i, (person, back) in enumerate(zip(front_dataset, back_dataset)):
         back["gender"],
         *BACK_POS["gender"],
         font="Simplified Arabic",
-        size=28,
+        size=29,
         is_bold=True
     )
 
@@ -421,7 +410,7 @@ for i, (person, back) in enumerate(zip(front_dataset, back_dataset)):
         back["marital_status"],
         *BACK_POS["marital_status"],
         font="Simplified Arabic",
-        size=28,
+        size=29,
         is_bold=True
     )
 
