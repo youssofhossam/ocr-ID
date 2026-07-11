@@ -61,8 +61,9 @@ def load_surface(path):
     )
 
     return surface, data
+
 # ============================================================
-# Draw Arabic Text
+# Draw Arabic Text (Modified to return labels)
 # ============================================================
 def draw_back_text(
         ctx,
@@ -101,26 +102,36 @@ def draw_back_text(
         layout.set_attributes(attrs)
 
     layout.set_auto_dir(True)
-    layout.set_width(width * Pango.SCALE)
 
-    if align == "left":
-        layout.set_alignment(Pango.Alignment.LEFT)
-    elif align == "center":
-        layout.set_alignment(Pango.Alignment.CENTER)
+    _, logical_rect = layout.get_pixel_extents()
+    lx = logical_rect.x
+    lw = logical_rect.width
+    lh = logical_rect.height
+
+    if align == "center":
+        draw_x = x - (lx + lw / 2)
+    elif align == "right":
+        draw_x = x - (lx + lw)
     else:
-        layout.set_alignment(Pango.Alignment.RIGHT)
-
-    layout.set_wrap(Pango.WrapMode.WORD_CHAR)
-    layout.set_justify(False)
-    layout.set_ellipsize(Pango.EllipsizeMode.NONE)
+        draw_x = x - lx
 
     ctx.set_source_rgb(*color)
-    ctx.move_to(x, y)
+    ctx.move_to(draw_x, y)
 
     PangoCairo.show_layout(ctx, layout)
 
+    return {
+        "transcription": str(text),
+        "points": [
+            [int(draw_x), int(y)],
+            [int(draw_x + lw), int(y)],
+            [int(draw_x + lw), int(y + lh)],
+            [int(draw_x), int(y + lh)]
+        ]
+    }
+
 # ============================================================
-# Draw Arabic Text
+# Draw Arabic Text (Modified to return labels)
 # ============================================================
 def draw_text(
         ctx,
@@ -170,17 +181,29 @@ def draw_text(
     layout.set_ellipsize(Pango.EllipsizeMode.NONE)
 
     _, logical = layout.get_pixel_extents()
+    lw = logical.width
+    lh = logical.height
+
+    draw_x = x - lw
 
     ctx.set_source_rgb(*color)
 
     ctx.move_to(
-        x - logical.width,
+        draw_x,
         y
     )
 
     PangoCairo.show_layout(ctx, layout)
 
-
+    return {
+        "transcription": str(text),
+        "points": [
+            [int(draw_x), int(y)],
+            [int(draw_x + lw), int(y)],
+            [int(draw_x + lw), int(y + lh)],
+            [int(draw_x), int(y + lh)]
+        ]
+    }
 
 def post_process(surface, output_path):
 
@@ -223,19 +246,22 @@ def post_process(surface, output_path):
 
     os.remove(tmp)
 
-
 # ============================================================
 # Generate Cards
 # ============================================================
+
+all_labels = [] # الحصالة بتاعة المربعات
 
 cnt = 0
 for i, (person, back) in enumerate(zip(front_dataset, back_dataset)):
     cnt+=1
     if(cnt == 20):
         break
+    
+    folder_name = f"card_{i:03d}"
     card_dir = os.path.join(
         OUTPUT_DIR_DATASET,
-        f"card_{i:03d}"
+        folder_name
     )
 
     os.makedirs(card_dir, exist_ok=True)
@@ -247,64 +273,66 @@ for i, (person, back) in enumerate(zip(front_dataset, back_dataset)):
     surface, _ = load_surface(FRONT_TEMPLATE)
 
     ctx = cairo.Context(surface)
+    
+    front_boxes = [] # حصالة مربعات الوش
 
     # -------------------------------
     # First Name
     # -------------------------------
 
-    draw_text(
+    front_boxes.append(draw_text(
         ctx,
         person["name_first"],
         *FRONT_POS["name_first"],
         font="Simplified Arabic",
         size=23,
         is_bold=True
-    )
+    ))
 
     # -------------------------------
     # Rest Name
     # -------------------------------
 
-    draw_text(
+    front_boxes.append(draw_text(
         ctx,
         person["name_rest"],
         *FRONT_POS["name_rest"],
         font="Kufi",
         size=23,
         is_bold=True
-    )
+    ))
 
     # -------------------------------
     # Street
     # -------------------------------
 
-    draw_text(
+    front_boxes.append(draw_text(
         ctx,
         person["street"],
         *FRONT_POS["street"],
         font="Simplified Arabic",
         size=23,
         is_bold=True
-    )
+    ))
 
     # -------------------------------
     # Address
     # -------------------------------
 
-    draw_text(
+    front_boxes.append(draw_text(
         ctx,
         person["address_rest"],
         *FRONT_POS["address_rest"],
         font="Noto Sans Arabic",
         size=22,
         is_bold=True
-    )
+    ))
 
     # -------------------------------
     # National ID
     # -------------------------------
 
-    draw_text(
+    front_boxes.append(draw_text(
         ctx,
         person["national_id"],
         *FRONT_POS["nid"],
@@ -312,12 +340,13 @@ for i, (person, back) in enumerate(zip(front_dataset, back_dataset)):
         size=25,
         letter_spacing=17,
         is_bold=True
-    )
+    ))
+    
     # -------------------------------
     # Brith Date
     # -------------------------------
 
-    draw_text(
+    front_boxes.append(draw_text(
         ctx,
         person["birth_date"],
         *FRONT_POS["bdate"],
@@ -325,14 +354,15 @@ for i, (person, back) in enumerate(zip(front_dataset, back_dataset)):
         size=28,
         letter_spacing=7,
         is_bold=True
-    )
-
-
+    ))
 
     post_process(
         surface,
         os.path.join(card_dir, "front.jpg")
     )
+    
+    # حفظ سطر الوش في ملف الـ Label
+    all_labels.append(f"{folder_name}/front.jpg\t{json.dumps(front_boxes, ensure_ascii=False)}\n")
 
     # ========================================================
     # BACK
@@ -341,12 +371,14 @@ for i, (person, back) in enumerate(zip(front_dataset, back_dataset)):
     surface, _ = load_surface(BACK_TEMPLATE)
 
     ctx = cairo.Context(surface)
+    
+    back_boxes = [] # حصالة مربعات الضهر
 
     # -------------------------------
     # National ID
     # -------------------------------
 
-    draw_text(
+    back_boxes.append(draw_text(
         ctx,
         back["national_id"],
         *BACK_POS["national_id"],
@@ -354,89 +386,99 @@ for i, (person, back) in enumerate(zip(front_dataset, back_dataset)):
         size=29,
         letter_spacing=10,
         is_bold=True
-    )
+    ))
 
     # -------------------------------
     # Occupation
     # -------------------------------
 
-    draw_text(
+    back_boxes.append(draw_text(
         ctx,
         back["occupation"],
         *BACK_POS["occupation"],
         font="Simplified Arabic",
         size=29,
         is_bold=True
-    )
+    ))
 
     # -------------------------------
     # Issue Date
     # -------------------------------
 
-    draw_text(
+    back_boxes.append(draw_text(
         ctx,
         back["issue_date"],
         *BACK_POS["issue_date"],
         font="DejaVu Sans",
         size=29,
         is_bold=True
-    )
+    ))
 
     # -------------------------------
     # Expiry Date
     # -------------------------------
-    draw_text(
+    back_boxes.append(draw_text(
         ctx,
         back["expiry_date"],
         *BACK_POS["expiry_date"],
         font="DejaVu Sans",
         size=29,
-        is_bold=True,
-        # align="right"
-    )
+        is_bold=True
+    ))
 
     # -------------------------------
     # Religion
     # -------------------------------
 
-    draw_text(
+    back_boxes.append(draw_text(
         ctx,
         back["religion"],
         *BACK_POS["religion"],
         font="Simplified Arabic",
         size=29,
         is_bold=True
-    )
+    ))
 
     # -------------------------------
     # Gender
     # -------------------------------
 
-    draw_text(
+    back_boxes.append(draw_text(
         ctx,
         back["gender"],
         *BACK_POS["gender"],
         font="Simplified Arabic",
         size=29,
         is_bold=True
-    )
+    ))
 
     # -------------------------------
     # Marital Status
     # -------------------------------
 
-    draw_text(
+    back_boxes.append(draw_text(
         ctx,
         back["marital_status"],
         *BACK_POS["marital_status"],
         font="Simplified Arabic",
         size=29,
         is_bold=True
-    )
+    ))
 
     post_process(
         surface,
         os.path.join(card_dir, "back.jpg")
     )
+    
+    # حفظ سطر الضهر في ملف الـ Label
+    all_labels.append(f"{folder_name}/back.jpg\t{json.dumps(back_boxes, ensure_ascii=False)}\n")
 
     print(f"Saved card {i:03d}")
+
+# ============================================================
+# إنشاء ملف المربعات لـ PaddleOCR
+# ============================================================
+with open(os.path.join(OUTPUT_DIR_DATASET, "Label.txt"), "w", encoding="utf-8") as f:
+    f.writelines(all_labels)
+
+print("تم إنشاء ملف Label.txt بنجاح!")
